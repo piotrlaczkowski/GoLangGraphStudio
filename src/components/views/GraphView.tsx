@@ -1486,12 +1486,12 @@ export const GraphView: React.FC = () => {
 
   // Auto-focus on currently executing node
   useEffect(() => {
-    if (graphState.currentNode && executionContext.isExecuting && !executionContext.isPaused) {
+    if (graphState?.currentNode && executionContext.isExecuting && !executionContext.isPaused) {
       setIsAutoFocusing(true);
       focusOnNodeInternal(graphState.currentNode);
       setTimeout(() => setIsAutoFocusing(false), 1000);
     }
-  }, [graphState.currentNode, executionContext.isExecuting, executionContext.isPaused]);
+  }, [graphState?.currentNode, executionContext.isExecuting, executionContext.isPaused]);
 
   // Show execution context info when it changes
   useEffect(() => {
@@ -1716,7 +1716,7 @@ export const GraphView: React.FC = () => {
       if (!currentNode) return;
 
       // Check for breakpoint
-      const breakpoint = executionContext.breakpoints.find(bp => bp.nodeId === currentNodeId && bp.enabled);
+      const breakpoint = executionContext.breakpoints.find((bp: any) => bp.nodeId === currentNodeId && bp.enabled);
       if (breakpoint) {
         pauseExecution();
         addExecutionLog({
@@ -2076,7 +2076,7 @@ export const GraphView: React.FC = () => {
     setSelectedNode(selectedNode === nodeId ? null : nodeId);
     
     // Find logs for this node
-    const nodeLogs = executionContext.logs.filter(log => log.nodeId === nodeId);
+    const nodeLogs = executionContext.logs.filter((log: ExecutionLog) => log.nodeId === nodeId);
     if (nodeLogs.length > 0) {
       // Focus on the most recent log for this node
       const mostRecentLog = nodeLogs[nodeLogs.length - 1];
@@ -2112,7 +2112,7 @@ export const GraphView: React.FC = () => {
   };
 
   const handleBreakpointToggle = (nodeId: string) => {
-    const hasBreakpoint = executionContext.breakpoints.some(bp => bp.nodeId === nodeId);
+    const hasBreakpoint = executionContext.breakpoints.some((bp: any) => bp.nodeId === nodeId);
     if (hasBreakpoint) {
       removeBreakpoint(nodeId);
     } else {
@@ -2224,7 +2224,7 @@ export const GraphView: React.FC = () => {
                 Logs: {executionContext.logs.length}
               </span>
               <span className={`px-2 py-1 rounded text-xs ${darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-                Breakpoints: {executionContext.breakpoints.filter(bp => bp.enabled).length}
+                Breakpoints: {executionContext.breakpoints.filter((bp: any) => bp.enabled).length}
               </span>
             </div>
           </div>
@@ -2394,7 +2394,7 @@ export const GraphView: React.FC = () => {
                   isSelected={selectedNode === node.id}
                   isActive={node.id === graphState.currentNode}
                   isHighlighted={hoveredNode === node.id}
-                  hasBreakpoint={executionContext.breakpoints.some(bp => bp.nodeId === node.id && bp.enabled)}
+                  hasBreakpoint={executionContext.breakpoints.some((bp: any) => bp.nodeId === node.id && bp.enabled)}
                   onClick={handleNodeClick}
                   onBreakpointToggle={handleBreakpointToggle}
                   scale={scale}

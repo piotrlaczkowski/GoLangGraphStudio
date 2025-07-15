@@ -25,7 +25,6 @@ export const Header: React.FC = () => {
     sidebarCollapsed,
     setSidebarCollapsed,
     config,
-    isConnected,
     fetchGraphData,
     connectionStatus,
     retryAttempts,
@@ -135,7 +134,7 @@ export const Header: React.FC = () => {
             <span className="text-white font-bold text-sm">LS</span>
           </div>
           <div>
-            <h1 className="text-lg font-semibold">LangGraph Studio</h1>
+            <h1 className="text-lg font-semibold">GoLangGraph Studio</h1>
             <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
               {isDemoMode ? 'Demo Mode' : 'Connected'}
             </p>

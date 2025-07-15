@@ -246,6 +246,15 @@ export const ConnectionSetup: React.FC = () => {
                   id: assistant.assistant_id || assistant.id,
                   name: assistant.name || assistant.assistant_id || assistant.id,
                   description: assistant.description || '',
+                  type: 'chat',
+                  model: 'gpt-4',
+                  provider: 'openai',
+                  temperature: 0.7,
+                  maxTokens: 1000,
+                  maxIterations: 10,
+                  tools: [],
+                  enableStreaming: false,
+                  timeout: 30000,
                   config: assistant.config || {},
                   graph_id: assistant.graph_id || assistant.id,
                 });
@@ -258,19 +267,28 @@ export const ConnectionSetup: React.FC = () => {
               
               // Fetch the actual graph data for the first available assistant
               await fetchGraphData(assistantId);
-            } else {
-              console.warn('⚠️ No assistants found on server, using fallback');
-              // Fallback: Add available graphs as assistants (original behavior)
-              availableGraphs.forEach(graph => {
-                addAssistant({
-                  id: graph.id,
-                  name: graph.name,
-                  description: graph.description || '',
-                  config: graph.config || {},
-                  graph_id: graph.id,
-                });
+                      } else {
+            console.warn('⚠️ No assistants found on server, using fallback');
+            // Fallback: Add available graphs as assistants (original behavior)
+            availableGraphs.forEach(graph => {
+              addAssistant({
+                id: graph.id,
+                name: graph.name,
+                description: graph.description || '',
+                type: 'chat',
+                model: 'gpt-4',
+                provider: 'openai',
+                temperature: 0.7,
+                maxTokens: 1000,
+                maxIterations: 10,
+                tools: [],
+                enableStreaming: false,
+                timeout: 30000,
+                config: graph.config || {},
+                graph_id: graph.id,
               });
-            }
+            });
+          }
           } else {
             console.warn('⚠️ Could not fetch assistants, using available graphs as fallback');
             // Fallback: Add available graphs as assistants (original behavior)
@@ -279,6 +297,15 @@ export const ConnectionSetup: React.FC = () => {
                 id: graph.id,
                 name: graph.name,
                 description: graph.description || '',
+                type: 'chat',
+                model: 'gpt-4',
+                provider: 'openai',
+                temperature: 0.7,
+                maxTokens: 1000,
+                maxIterations: 10,
+                tools: [],
+                enableStreaming: false,
+                timeout: 30000,
                 config: graph.config || {},
                 graph_id: graph.id,
               });
@@ -292,13 +319,22 @@ export const ConnectionSetup: React.FC = () => {
               id: graph.id,
               name: graph.name,
               description: graph.description || '',
+              type: 'chat',
+              model: 'gpt-4',
+              provider: 'openai',
+              temperature: 0.7,
+              maxTokens: 1000,
+              maxIterations: 10,
+              tools: [],
+              enableStreaming: false,
+              timeout: 30000,
               config: graph.config || {},
               graph_id: graph.id,
             });
           });
         }
         
-        toast.success('Successfully connected to LangGraph server!');
+        toast.success('Successfully connected to GoLangGraph server!');
         
         // Navigate to studio after successful connection
         setTimeout(() => {
@@ -309,14 +345,14 @@ export const ConnectionSetup: React.FC = () => {
       }
     } catch (error) {
       console.error('Connection error:', error);
-      toast.error('Failed to connect to LangGraph server. Please check your configuration.');
+      toast.error('Failed to connect to GoLangGraph server. Please check your configuration.');
     } finally {
       setIsConnecting(false);
       setIsLoading(false);
     }
   };
 
-  const handleInputChange = (field: keyof LangGraphConfig, value: string) => {
+  const handleInputChange = (field: keyof GoLangGraphConfig, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -338,6 +374,15 @@ export const ConnectionSetup: React.FC = () => {
         id: 'demo_graph',
         name: 'Demo Assistant',
         description: 'A sample assistant for demonstration',
+        type: 'chat' as const,
+        model: 'gpt-4',
+        provider: 'openai',
+        temperature: 0.7,
+        maxTokens: 1000,
+        maxIterations: 10,
+        tools: [],
+        enableStreaming: false,
+        timeout: 30000,
         config: {},
         graph_id: 'demo_graph',
       },
@@ -345,6 +390,15 @@ export const ConnectionSetup: React.FC = () => {
         id: 'retrieval_graph',
         name: 'Retrieval Assistant',
         description: 'RAG-based retrieval assistant',
+        type: 'chat' as const,
+        model: 'gpt-4',
+        provider: 'openai',
+        temperature: 0.7,
+        maxTokens: 1000,
+        maxIterations: 10,
+        tools: [],
+        enableStreaming: false,
+        timeout: 30000,
         config: {},
         graph_id: 'retrieval_graph',
       },
@@ -352,6 +406,15 @@ export const ConnectionSetup: React.FC = () => {
         id: 'researcher_graph',
         name: 'Research Assistant',
         description: 'Multi-step research assistant',
+        type: 'chat' as const,
+        model: 'gpt-4',
+        provider: 'openai',
+        temperature: 0.7,
+        maxTokens: 1000,
+        maxIterations: 10,
+        tools: [],
+        enableStreaming: false,
+        timeout: 30000,
         config: {},
         graph_id: 'researcher_graph',
       }
@@ -455,7 +518,7 @@ export const ConnectionSetup: React.FC = () => {
             </div>
             
             <h1 className={`text-5xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              LangGraph
+              GoLangGraph
               <span className={`block text-4xl ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
                 Studio
               </span>

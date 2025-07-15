@@ -165,6 +165,7 @@ export interface StreamEvent {
 export interface GoLangGraphConfig {
   apiUrl: string;
   agentId?: string;
+  assistantId?: string;
   apiKey?: string;
 }
 

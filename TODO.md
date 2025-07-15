@@ -1,2 +1,0 @@
-- checkpoint the executions so we can replay past graphs executions (it can be in a temp folder and the history should be removed / only keep last 7 executions)
-- when on the graph view I click on a given node the logs should not only be highlighted but we should center the logs view so I can clearly see it, also if the graph was executed let's add to each not a small info icon so that if on hove I can see all details in a popup about the logs of this node / step

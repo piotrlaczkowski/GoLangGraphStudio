@@ -1,6 +1,6 @@
 {
-  "short_name": "LangGraph Studio",
-  "name": "LangGraph Studio - Visual Interface for LangGraph Agents",
+  "short_name": "GoLangGraph Studio",
+  "name": "GoLangGraph Studio - Visual Interface for GoLangGraph Agents",
   "icons": [],
   "start_url": ".",
   "display": "standalone",

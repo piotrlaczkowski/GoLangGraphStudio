@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useStudioStore } from '../../store/useStudioStore';
 import { Thread } from '../../types';
 import { PlusIcon, ChatBubbleLeftIcon, TrashIcon, ClockIcon } from '@heroicons/react/24/outline';

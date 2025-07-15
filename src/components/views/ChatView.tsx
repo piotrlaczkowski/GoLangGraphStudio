@@ -504,8 +504,17 @@ export const ChatView: React.FC = () => {
     if (!currentAssistant && assistants.length === 0) {
       const defaultAssistant = {
         id: 'default-assistant',
-        name: 'LangGraph Assistant',
+        name: 'GoLangGraph Assistant',
         description: 'Default assistant for chat interactions',
+        type: 'chat' as const,
+        model: 'gpt-4',
+        provider: 'openai',
+        temperature: 0.7,
+        maxTokens: 1000,
+        maxIterations: 10,
+        tools: [],
+        enableStreaming: false,
+        timeout: 30000,
         config: {},
         graph_id: 'default-graph',
       };
@@ -621,7 +630,7 @@ export const ChatView: React.FC = () => {
         data: {
           stopped_by_user: true,
           duration: executionContext.startTime ? Date.now() - executionContext.startTime.getTime() : 0,
-          executed_nodes: new Set(executionContext.logs.map(log => log.nodeId)).size,
+          executed_nodes: new Set(executionContext.logs.map((log: ExecutionLog) => log.nodeId)).size,
           total_nodes: graphState.nodes.length
         }
       });
@@ -705,7 +714,7 @@ export const ChatView: React.FC = () => {
                   <div>
                     <div className="text-sm font-medium">
                       {(() => {
-                        const isStreaming = executionContext.logs.some(log => 
+                        const isStreaming = executionContext.logs.some((log: ExecutionLog) => 
                           log.type === 'output' && log.data?.streaming === true
                         );
                         if (isStreaming) return 'Streaming Response';
@@ -722,7 +731,7 @@ export const ChatView: React.FC = () => {
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  {executionContext.logs.some(log => log.type === 'output' && log.data?.streaming === true) && (
+                  {executionContext.logs.some((log: ExecutionLog) => log.type === 'output' && log.data?.streaming === true) && (
                     <div className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                       darkMode ? 'bg-green-900 text-green-300' : 'bg-green-100 text-green-700'
                     }`}>
@@ -731,7 +740,7 @@ export const ChatView: React.FC = () => {
                   )}
                   
                   <div className={`text-xs ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-                    {new Set(executionContext.logs.map(log => log.nodeId)).size}/{graphState.nodes.length} steps
+                    {new Set(executionContext.logs.map((log: ExecutionLog) => log.nodeId)).size}/{graphState.nodes.length} steps
                   </div>
                   
                   <button
@@ -780,7 +789,7 @@ export const ChatView: React.FC = () => {
                     Start a conversation! ✨
                   </h3>
                   <p className={`max-w-md mx-auto leading-relaxed ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Send a message to begin chatting with your LangGraph agent. 
+                    Send a message to begin chatting with your GoLangGraph agent. 
                     You can ask questions, give instructions, or start a discussion! 🎯
                   </p>
                   <div className="mt-6 flex justify-center space-x-4">
@@ -883,7 +892,7 @@ export const ChatView: React.FC = () => {
               <span>Press Enter to send, Shift+Enter for new line</span>
               <span className="flex items-center space-x-1">
                 <span>Powered by</span>
-                <span className="font-semibold text-blue-500">LangGraph</span>
+                <span className="font-semibold text-blue-500">GoLangGraph</span>
                 <span>⚡</span>
               </span>
             </div>
@@ -985,7 +994,7 @@ const GraphExecutionIndicator: React.FC = () => {
   const { darkMode, executionContext, graphState } = useStudioStore();
   
   // Check if we're currently streaming
-  const isStreaming = executionContext.logs.some(log => 
+  const isStreaming = executionContext.logs.some((log: ExecutionLog) => 
     log.type === 'output' && 
     log.data?.streaming === true
   );
@@ -1000,7 +1009,7 @@ const GraphExecutionIndicator: React.FC = () => {
   
   // Calculate execution progress
   const totalNodes = graphState.nodes.length;
-  const executedNodes = new Set(executionContext.logs.map(log => log.nodeId)).size;
+  const executedNodes = new Set(executionContext.logs.map((log: ExecutionLog) => log.nodeId)).size;
   const progressPercentage = totalNodes > 0 ? Math.round((executedNodes / totalNodes) * 100) : 0;
   
   return (

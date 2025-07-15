@@ -3,18 +3,18 @@ import { useStudioStore } from '../../store/useStudioStore';
 import { format } from 'date-fns';
 
 export const DebugView: React.FC = () => {
-  const { currentRun, graphState, selectedThread, darkMode } = useStudioStore();
+  const { graphState, selectedThread, darkMode } = useStudioStore();
   const [activeTab, setActiveTab] = useState<'state' | 'steps' | 'logs' | 'performance'>('state');
   const [searchTerm, setSearchTerm] = useState('');
   const [logLevel, setLogLevel] = useState<'ALL' | 'ERROR' | 'WARN' | 'INFO' | 'DEBUG'>('ALL');
 
   const mockState = {
     messages: selectedThread?.messages || [],
-    current_node: graphState.currentNode || 'agent',
-    execution_path: graphState.executionPath,
+    current_node: graphState?.currentNode || 'agent',
+    execution_path: graphState?.executionPath || [],
     variables: {
-      user_input: "What is LangGraph?",
-      context: "LangGraph is a library for building stateful, multi-actor applications with LLMs.",
+      user_input: "What is GoLangGraph?",
+      context: "GoLangGraph is a library for building stateful, multi-actor applications with LLMs.",
       step_count: 3,
       tools_used: ["search", "reasoning"],
       session_data: {
@@ -38,7 +38,7 @@ export const DebugView: React.FC = () => {
       id: "step_1",
       node: "start",
       status: "completed",
-      input: { message: "What is LangGraph?" },
+      input: { message: "What is GoLangGraph?" },
       output: { processed: true, routing_decision: "agent" },
       timestamp: new Date(Date.now() - 5000),
       duration: 120,
@@ -48,7 +48,7 @@ export const DebugView: React.FC = () => {
       id: "step_2", 
       node: "agent",
       status: "running",
-      input: { query: "What is LangGraph?", context: "user_question" },
+      input: { query: "What is GoLangGraph?", context: "user_question" },
       output: null,
       timestamp: new Date(Date.now() - 3000),
       duration: null,
@@ -807,4 +807,6 @@ const PerformanceView: React.FC<{ performance: any; darkMode: boolean }> = ({ pe
       </div>
     </div>
   );
-}; 
+};
+
+export default DebugView; 
