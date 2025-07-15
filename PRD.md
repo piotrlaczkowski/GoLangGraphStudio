@@ -1,0 +1,1 @@
+When I use langgraph dev there is a nice frontend that pops up that help develop and test the agent and included chat interface -> I am wondering if you can reproduce this interface in react quickly so I can have my own interface without any limits for production

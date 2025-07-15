@@ -1,0 +1,9 @@
+{
+  "short_name": "LangGraph Studio",
+  "name": "LangGraph Studio - Visual Interface for LangGraph Agents",
+  "icons": [],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#3b82f6",
+  "background_color": "#1f2937"
+} 
