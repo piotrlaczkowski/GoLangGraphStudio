@@ -1505,7 +1505,7 @@ export const GraphView: React.FC = () => {
 
   // Internal function to focus on a specific node
   const focusOnNodeInternal = (nodeId: string) => {
-    const node = graphState.nodes.find(n => n.id === nodeId);
+    const node = graphState?.nodes?.find(n => n.id === nodeId);
     if (!node || !canvasRef.current) return;
 
     const canvasRect = canvasRef.current.getBoundingClientRect();
@@ -1547,7 +1547,7 @@ export const GraphView: React.FC = () => {
 
   // Internal function to fit graph to view
   const fitGraphToViewInternal = () => {
-    if (graphState.nodes.length === 0 || !canvasRef.current) return;
+    if (graphState?.nodes?.length === 0 || !canvasRef.current) return;
 
     const bounds = graphState.nodes.reduce((acc, node) => {
       return {
@@ -1611,13 +1611,13 @@ export const GraphView: React.FC = () => {
     const store = useStudioStore.getState();
     store.focusOnNode = focusOnNodeInternal;
     store.fitGraphToView = fitGraphToViewInternal;
-  }, [scale, pan, graphState.nodes]);
+  }, [scale, pan, graphState?.nodes]);
 
   // Sample graph data for demonstration
   useEffect(() => {
     const isDemoMode = config.apiUrl.includes('localhost:3000') || !isConnected;
     
-    if (graphState.nodes.length === 0 && isDemoMode) {
+    if (graphState?.nodes?.length === 0 && isDemoMode) {
       const sampleNodes: StudioGraphNode[] = [
         {
           id: '__start__',
@@ -1702,17 +1702,17 @@ export const GraphView: React.FC = () => {
         executionPath: [],
       });
     }
-  }, [graphState.nodes.length, setGraphState, config.apiUrl, isConnected]);
+  }, [graphState?.nodes?.length, setGraphState, config.apiUrl, isConnected]);
 
   // Real execution engine with live logging
   useEffect(() => {
     if (!executionContext.isExecuting || executionContext.isPaused) return;
 
     const executeNextNode = async () => {
-      const currentNodeId = graphState.currentNode;
+      const currentNodeId = graphState?.currentNode;
       if (!currentNodeId) return;
 
-      const currentNode = graphState.nodes.find(n => n.id === currentNodeId);
+      const currentNode = graphState?.nodes?.find(n => n.id === currentNodeId);
       if (!currentNode) return;
 
       // Check for breakpoint
@@ -2055,7 +2055,7 @@ export const GraphView: React.FC = () => {
 
     const timeoutId = setTimeout(executeNextNode, 500);
     return () => clearTimeout(timeoutId);
-  }, [executionContext.isExecuting, executionContext.isPaused, graphState.currentNode]);
+  }, [executionContext.isExecuting, executionContext.isPaused, graphState?.currentNode]);
 
   // Wheel event handler
   useEffect(() => {
@@ -2071,6 +2071,18 @@ export const GraphView: React.FC = () => {
     canvas.addEventListener('wheel', handleWheel, { passive: false });
     return () => canvas.removeEventListener('wheel', handleWheel);
   }, []);
+
+  // Safety check for graphState - after all hooks are declared
+  if (!graphState) {
+    return (
+      <div className={`flex items-center justify-center h-full ${darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p>Loading graph state...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleNodeClick = (nodeId: string) => {
     setSelectedNode(selectedNode === nodeId ? null : nodeId);
@@ -2206,7 +2218,7 @@ export const GraphView: React.FC = () => {
             </h2>
             <div className={`flex items-center space-x-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               <span className={`px-2 py-1 rounded status-indicator ${darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700'}`}>
-                Current: {graphState.currentNode || 'None'}
+                Current: {graphState?.currentNode || 'None'}
               </span>
               <span className={`px-2 py-1 rounded status-indicator ${
                 executionContext.isExecuting 
@@ -2275,7 +2287,7 @@ export const GraphView: React.FC = () => {
               >
                 Fit
               </button>
-              {graphState.currentNode && (
+              {graphState?.currentNode && (
                 <button
                   onClick={() => focusOnNodeInternal(graphState.currentNode!)}
                   className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
@@ -2381,7 +2393,7 @@ export const GraphView: React.FC = () => {
                   key={edge.id}
                   edge={edge}
                   nodes={graphState.nodes}
-                  isActive={edge.source === graphState.currentNode || edge.target === graphState.currentNode}
+                  isActive={edge.source === graphState?.currentNode || edge.target === graphState?.currentNode}
                   isInExecutionPath={graphState.executionPath.includes(edge.source) && graphState.executionPath.includes(edge.target)}
                 />
               ))}
@@ -2392,7 +2404,7 @@ export const GraphView: React.FC = () => {
                   key={node.id}
                   node={node}
                   isSelected={selectedNode === node.id}
-                  isActive={node.id === graphState.currentNode}
+                  isActive={node.id === graphState?.currentNode}
                   isHighlighted={hoveredNode === node.id}
                   hasBreakpoint={executionContext.breakpoints.some((bp: any) => bp.nodeId === node.id && bp.enabled)}
                   onClick={handleNodeClick}
