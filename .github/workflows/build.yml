@@ -13,9 +13,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: GoLangGraphStudio
 
     steps:
       - name: Checkout code
@@ -29,8 +26,8 @@ jobs:
       - name: Cache dependencies
         uses: actions/cache@v3
         with:
-          path: GoLangGraphStudio/node_modules
-          key: ${{ runner.os }}-node-18-${{ hashFiles('GoLangGraphStudio/package-lock.json', 'GoLangGraphStudio/package.json') }}
+          path: node_modules
+          key: ${{ runner.os }}-node-18-${{ hashFiles('package-lock.json', 'package.json') }}
           restore-keys: |
             ${{ runner.os }}-node-18-
             ${{ runner.os }}-node-
@@ -53,5 +50,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-files
-          path: GoLangGraphStudio/build
+          path: build
           retention-days: 7 

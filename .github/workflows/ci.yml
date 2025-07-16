@@ -15,9 +15,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: GoLangGraphStudio
 
     strategy:
       matrix:
@@ -35,8 +32,8 @@ jobs:
       - name: Cache dependencies
         uses: actions/cache@v3
         with:
-          path: GoLangGraphStudio/node_modules
-          key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('GoLangGraphStudio/package-lock.json', 'GoLangGraphStudio/package.json') }}
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('package-lock.json', 'package.json') }}
           restore-keys: |
             ${{ runner.os }}-node-${{ matrix.node-version }}-
             ${{ runner.os }}-node-
@@ -63,14 +60,11 @@ jobs:
         if: matrix.node-version == '18.x'
         with:
           name: build-files
-          path: GoLangGraphStudio/build
+          path: build
           retention-days: 7
 
   security:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: GoLangGraphStudio
 
     steps:
       - name: Checkout code
@@ -84,8 +78,8 @@ jobs:
       - name: Cache dependencies
         uses: actions/cache@v3
         with:
-          path: GoLangGraphStudio/node_modules
-          key: ${{ runner.os }}-node-18-${{ hashFiles('GoLangGraphStudio/package-lock.json', 'GoLangGraphStudio/package.json') }}
+          path: node_modules
+          key: ${{ runner.os }}-node-18-${{ hashFiles('package-lock.json', 'package.json') }}
           restore-keys: |
             ${{ runner.os }}-node-18-
             ${{ runner.os }}-node-
@@ -137,8 +131,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: GoLangGraphStudio
-          file: GoLangGraphStudio/Dockerfile
+          context: .
+          file: Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
