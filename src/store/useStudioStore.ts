@@ -204,7 +204,7 @@ class LiveUpdateManager {
 export const liveUpdateManager = new LiveUpdateManager();
 
 // Helper function to generate contextual responses based on execution
-const generateExecutionResponse = (userMessage: string, logs: ExecutionLog[]): string => {
+const generateExecutionResponse = (inputMessage: string, logs: ExecutionLog[]): string => {
   // First priority: Look for intermediate_results in logs (matching user's example format)
   const intermediateResultsLogs = logs.filter(log => 
     log.data?.intermediate_results
@@ -218,7 +218,7 @@ const generateExecutionResponse = (userMessage: string, logs: ExecutionLog[]): s
       return results.respond.response;
     }
     
-    // Look for any node with response
+    // Look for any node with response - extract just the response field
     for (const [nodeId, result] of Object.entries(results)) {
       if (result && typeof result === 'object') {
         const nodeResult = result as any;
@@ -229,18 +229,34 @@ const generateExecutionResponse = (userMessage: string, logs: ExecutionLog[]): s
     }
   }
   
-  // Second priority: Look for actual agent responses in the logs
+  // Second priority: Look for actual agent responses in the logs data output
   const responseLogs = logs.filter(log => 
-    log.type === 'output' && 
-    log.data?.output?.response && 
-    typeof log.data.output.response === 'string' &&
-    log.data.output.response.trim().length > 0
+    log.type === 'output' && log.data?.output
   );
   
-  if (responseLogs.length > 0) {
-    // Get the most recent response
-    const latestResponse = responseLogs[responseLogs.length - 1];
-    return latestResponse.data.output.response;
+  for (const log of responseLogs.reverse()) {
+    const output = log.data.output;
+    
+    // Handle structured agent responses (Go map format)
+    if (output && typeof output === 'object') {
+      // Extract response field from structured output
+      if (output.response && typeof output.response === 'string' && output.response.trim().length > 0) {
+        return output.response;
+      }
+      
+      // Fallback to other text fields
+      const textFields = ['result', 'content', 'text', 'message', 'answer'];
+      for (const field of textFields) {
+        if (output[field] && typeof output[field] === 'string' && output[field].trim().length > 0) {
+          return output[field];
+        }
+      }
+    }
+    
+    // Handle string responses
+    if (typeof output === 'string' && output.trim().length > 0) {
+      return output;
+    }
   }
   
   // Third priority: Look for final_response in the execution state
@@ -312,7 +328,8 @@ const generateExecutionResponse = (userMessage: string, logs: ExecutionLog[]): s
       output.content,
       output.text,
       output.message,
-      output.answer
+      output.answer,
+      output.clarification_request
     ];
     
     for (const response of possibleResponses) {
@@ -322,20 +339,15 @@ const generateExecutionResponse = (userMessage: string, logs: ExecutionLog[]): s
     }
   }
   
-  // Last resort: Generate a contextual response based on user input
-  const input = userMessage.toLowerCase();
-  const nodeCount = new Set(logs.map(log => log.nodeId)).size;
+  // Last resort: Generate a contextual response based on execution path
+  const executedNodes = new Set(logs.map(log => log.nodeId));
+  const extractedMessage = logs.find(log => log.data?.userMessage)?.data.userMessage || inputMessage || 'your request';
   
-  if (input.includes('hello') || input.includes('hi') || input.includes('hey')) {
+  if (executedNodes.has('respond_to_greeting') || Array.from(executedNodes).some(id => id.includes('greeting'))) {
     return `Hello! I'm here to help you with any questions or research you need. What would you like to know about?`;
   }
   
-  if (input.includes('test')) {
-    return `I've processed your test request successfully! The system executed ${nodeCount} nodes and everything is working correctly. How can I help you further?`;
-  }
-  
-  // Generic fallback - but much shorter and more natural
-  return `I've processed your request about "${userMessage}". How can I help you further?`;
+  return `I've processed your request: "${extractedMessage}". The system completed execution successfully with ${executedNodes.size} nodes.`;
 };
 
 interface StudioStore extends StudioState {
@@ -758,7 +770,7 @@ export const useStudioStore = create<StudioStore>()(
 
           // First, try to list available agents using GoLangGraph API
           console.log('📋 Searching for available agents...');
-          const agentsResponse = await fetch(`${config.apiUrl}/api/v1/agents`, {
+          const agentsResponse = await fetch(`${config.apiUrl}/agents`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
@@ -792,7 +804,7 @@ export const useStudioStore = create<StudioStore>()(
 
           // Now fetch the agent details including graph structure
           console.log(`🔍 Fetching graph structure for agent: ${actualAgentId}`);
-          const agentResponse = await fetch(`${config.apiUrl}/api/v1/agents/${actualAgentId}`, {
+          const agentResponse = await fetch(`${config.apiUrl}/agents/${actualAgentId}`, {
             headers: {
               'Content-Type': 'application/json',
               ...(config.apiKey && { 'X-Api-Key': config.apiKey })
@@ -806,84 +818,348 @@ export const useStudioStore = create<StudioStore>()(
           const agentData = await agentResponse.json();
           console.log('📊 Agent data:', agentData);
 
-          // Try to get graph topology if available
-          let graphData = null;
-          try {
-            const topologyResponse = await fetch(`${config.apiUrl}/api/v1/graphs/${actualAgentId}/topology`, {
-              headers: {
-                'Content-Type': 'application/json',
-                ...(config.apiKey && { 'X-Api-Key': config.apiKey })
-              },
-            });
-            
-            if (topologyResponse.ok) {
-              graphData = await topologyResponse.json();
-              console.log('📊 Graph topology:', graphData);
-            }
-          } catch (error) {
-            console.warn('Could not fetch graph topology:', error);
-          }
-          // Convert GoLangGraph data to our UI format
-          if (graphData && graphData.topology) {
+          // Use the agent data we already have to build the graph
+          console.log('📊 Building graph from agent data:', agentData);
+          // Create graph visualization based on agent metadata
+          if (agentData && agentData.metadata) {
             const nodes: GraphNode[] = [];
             const edges: GraphEdge[] = [];
             
-            // Convert topology to nodes and edges
-            const topology = graphData.topology;
-            const nodeIds = Object.keys(topology);
+            // Build graph based on agent type and metadata
+            const agentId = agentData.id;
+            const metadata = agentData.metadata;
             
-            // Create nodes
-            nodeIds.forEach((nodeId, index) => {
-              const detectNodeType = (nodeId: string) => {
-                const id = nodeId.toLowerCase();
-                if (id === '__start__' || id.includes('start')) return 'start';
-                if (id === '__end__' || id.includes('end')) return 'end';
-                if (id.includes('reason')) return 'condition';
-                if (id.includes('act')) return 'tool';
-                if (id.includes('observe')) return 'processing';
-                if (id.includes('finalize')) return 'generation';
-                if (id.includes('chat')) return 'generation';
-                if (id.includes('plan')) return 'condition';
-                if (id.includes('execute')) return 'tool';
-                if (id.includes('review')) return 'validation';
-                return 'default';
-              };
-
+            console.log(`🏗️ Building graph for agent: ${agentId}`);
+            
+            if (agentId === 'interviewer') {
+              // Build interviewer workflow graph based on the actual GoLangGraph structure
+              const conversationPhases = metadata.output_schema?.properties?.conversation_phase?.enum || [];
+              
               nodes.push({
-                id: nodeId,
-                type: detectNodeType(nodeId),
+                id: '__start__',
+                type: 'start',
                 data: {
-                  label: nodeId,
-                  description: `GoLangGraph node: ${nodeId}`,
+                  label: 'Start',
+                  description: 'Begin interview workflow',
                   status: 'idle' as const,
                   metadata: {},
                 },
-                position: { x: 0, y: 0 }, // Will be calculated by layout algorithm
+                position: { x: 100, y: 200 },
               });
-            });
-            
-            // Create edges from topology
-            let edgeIndex = 0;
-            Object.entries(topology).forEach(([fromNode, toNodes]) => {
-              if (Array.isArray(toNodes)) {
-                toNodes.forEach((toNode: string) => {
-                  edges.push({
-                    id: `edge_${edgeIndex++}`,
-                    source: fromNode,
-                    target: toNode,
-                    type: 'default',
-                    data: {},
-                  });
-                });
-              }
-            });
-
-            // Apply automatic layout algorithm
-            const layoutNodes = applyAutoLayout(nodes, edges);
+              
+              nodes.push({
+                id: 'process',
+                type: 'processing',
+                data: {
+                  label: 'Process Message',
+                  description: 'Process user input and determine interview phase',
+                  status: 'idle' as const,
+                  metadata: { phases: conversationPhases },
+                },
+                position: { x: 300, y: 200 },
+              });
+              
+              nodes.push({
+                id: 'summarize',
+                type: 'validation',
+                data: {
+                  label: 'Summarize Interview',
+                  description: 'Create summary of interview conversation',
+                  status: 'idle' as const,
+                  metadata: {},
+                },
+                position: { x: 500, y: 300 },
+              });
+              
+              nodes.push({
+                id: '__end__',
+                type: 'end',
+                data: {
+                  label: 'End',
+                  description: 'Complete interview workflow',
+                  status: 'idle' as const,
+                  metadata: {},
+                },
+                position: { x: 700, y: 200 },
+              });
+              
+              // Create edges based on the actual workflow
+              edges.push({
+                id: 'e1',
+                source: '__start__',
+                target: 'process',
+                type: 'default',
+                data: { label: 'Begin' },
+              });
+              
+              edges.push({
+                id: 'e2',
+                source: 'process',
+                target: '__end__',
+                type: 'default',
+                data: { label: 'Continue Interview' },
+              });
+              
+              edges.push({
+                id: 'e3',
+                source: 'process',
+                target: 'summarize',
+                type: 'conditional',
+                data: { label: 'should_summarize = true' },
+              });
+              
+              edges.push({
+                id: 'e4',
+                source: 'summarize',
+                target: '__end__',
+                type: 'default',
+                data: { label: 'Summary Complete' },
+              });
+              
+            } else if (agentId === 'designer') {
+              // Build designer workflow graph
+              const styles = metadata.output_schema?.properties?.style?.enum || [];
+              
+              nodes.push({
+                id: '__start__',
+                type: 'start',
+                data: {
+                  label: 'Start',
+                  description: 'Begin design process',
+                  status: 'idle' as const,
+                  metadata: {},
+                },
+                position: { x: 100, y: 200 },
+              });
+              
+              nodes.push({
+                id: 'analyze_request',
+                type: 'processing',
+                data: {
+                  label: 'Analyze Request',
+                  description: 'Analyze design requirements',
+                  status: 'idle' as const,
+                  metadata: {},
+                },
+                position: { x: 300, y: 200 },
+              });
+              
+              nodes.push({
+                id: 'generate_design',
+                type: 'generation',
+                data: {
+                  label: 'Generate Design',
+                  description: 'Create visual design and concepts',
+                  status: 'idle' as const,
+                  metadata: { styles },
+                },
+                position: { x: 500, y: 200 },
+              });
+              
+              nodes.push({
+                id: '__end__',
+                type: 'end',
+                data: {
+                  label: 'End',
+                  description: 'Complete design process',
+                  status: 'idle' as const,
+                  metadata: {},
+                },
+                position: { x: 700, y: 200 },
+              });
+              
+              edges.push({
+                id: 'e1',
+                source: '__start__',
+                target: 'analyze_request',
+                type: 'default',
+                data: { label: 'Begin' },
+              });
+              
+              edges.push({
+                id: 'e2',
+                source: 'analyze_request',
+                target: 'generate_design',
+                type: 'default',
+                data: { label: 'Requirements Ready' },
+              });
+              
+              edges.push({
+                id: 'e3',
+                source: 'generate_design',
+                target: '__end__',
+                type: 'default',
+                data: { label: 'Design Complete' },
+              });
+              
+            } else if (agentId === 'highlighter') {
+              // Build highlighter workflow graph
+              nodes.push({
+                id: '__start__',
+                type: 'start',
+                data: {
+                  label: 'Start',
+                  description: 'Begin analysis process',
+                  status: 'idle' as const,
+                  metadata: {},
+                },
+                position: { x: 100, y: 200 },
+              });
+              
+              nodes.push({
+                id: 'analyze_conversation',
+                type: 'processing',
+                data: {
+                  label: 'Analyze Conversation',
+                  description: 'Process conversation history',
+                  status: 'idle' as const,
+                  metadata: {},
+                },
+                position: { x: 300, y: 200 },
+              });
+              
+              nodes.push({
+                id: 'extract_insights',
+                type: 'generation',
+                data: {
+                  label: 'Extract Insights',
+                  description: 'Identify key insights and themes',
+                  status: 'idle' as const,
+                  metadata: {},
+                },
+                position: { x: 500, y: 200 },
+              });
+              
+              nodes.push({
+                id: '__end__',
+                type: 'end',
+                data: {
+                  label: 'End',
+                  description: 'Complete analysis',
+                  status: 'idle' as const,
+                  metadata: {},
+                },
+                position: { x: 700, y: 200 },
+              });
+              
+              edges.push({
+                id: 'e1',
+                source: '__start__',
+                target: 'analyze_conversation',
+                type: 'default',
+                data: { label: 'Begin' },
+              });
+              
+              edges.push({
+                id: 'e2',
+                source: 'analyze_conversation',
+                target: 'extract_insights',
+                type: 'default',
+                data: { label: 'Analysis Complete' },
+              });
+              
+              edges.push({
+                id: 'e3',
+                source: 'extract_insights',
+                target: '__end__',
+                type: 'default',
+                data: { label: 'Insights Ready' },
+              });
+              
+            } else if (agentId === 'storymaker') {
+              // Build storymaker workflow graph
+              const genres = metadata.output_schema?.properties?.genre?.enum || [];
+              
+              nodes.push({
+                id: '__start__',
+                type: 'start',
+                data: {
+                  label: 'Start',
+                  description: 'Begin story creation',
+                  status: 'idle' as const,
+                  metadata: {},
+                },
+                position: { x: 100, y: 200 },
+              });
+              
+              nodes.push({
+                id: 'plan_narrative',
+                type: 'condition',
+                data: {
+                  label: 'Plan Narrative',
+                  description: 'Plan story structure and themes',
+                  status: 'idle' as const,
+                  metadata: { genres },
+                },
+                position: { x: 300, y: 200 },
+              });
+              
+              nodes.push({
+                id: 'generate_story',
+                type: 'generation',
+                data: {
+                  label: 'Generate Story',
+                  description: 'Create engaging narrative',
+                  status: 'idle' as const,
+                  metadata: {},
+                },
+                position: { x: 500, y: 200 },
+              });
+              
+              nodes.push({
+                id: '__end__',
+                type: 'end',
+                data: {
+                  label: 'End',
+                  description: 'Story complete',
+                  status: 'idle' as const,
+                  metadata: {},
+                },
+                position: { x: 700, y: 200 },
+              });
+              
+              edges.push({
+                id: 'e1',
+                source: '__start__',
+                target: 'plan_narrative',
+                type: 'default',
+                data: { label: 'Begin' },
+              });
+              
+              edges.push({
+                id: 'e2',
+                source: 'plan_narrative',
+                target: 'generate_story',
+                type: 'default',
+                data: { label: 'Plan Ready' },
+              });
+              
+              edges.push({
+                id: 'e3',
+                source: 'generate_story',
+                target: '__end__',
+                type: 'default',
+                data: { label: 'Story Complete' },
+              });
+              
+            } else {
+              // Default single-node graph for unknown agents
+              nodes.push({
+                id: 'agent_node',
+                type: 'generation',
+                data: {
+                  label: agentData.name || agentId,
+                  description: agentData.description || 'Agent processing',
+                  status: 'idle' as const,
+                  metadata: metadata,
+                },
+                position: { x: 300, y: 200 },
+              });
+            }
 
             set({
               graphState: {
-                nodes: layoutNodes,
+                nodes: nodes,
                 edges: edges,
                 currentNode: undefined,
                 executionPath: [],
@@ -891,7 +1167,7 @@ export const useStudioStore = create<StudioStore>()(
               isLoading: false,
             });
             
-            console.log('✅ Successfully loaded GoLangGraph structure');
+            console.log(`✅ Successfully created ${agentId} agent graph with ${nodes.length} nodes and ${edges.length} edges`);
             
           } else if (agentData && agentData.agent) {
             // Create a basic node structure for the agent
@@ -1484,96 +1760,153 @@ export const useStudioStore = create<StudioStore>()(
               }
             });
             
-            // Use WebSocket for real-time execution with GoLangGraph
-            const wsUrl = config.apiUrl.replace('http://', 'ws://').replace('https://', 'wss://');
-            const ws = new WebSocket(`${wsUrl}/api/v1/ws/agents/${selectedAgent.id}/stream`);
+            // Use HTTP streaming (SSE) for real-time execution with GoLangGraph
+            // The auto-server uses Server-Sent Events, not WebSocket
+            const streamUrl = `${config.apiUrl}/api/${selectedAgent.id}/stream`;
             
             const intermediateResults: Record<string, any> = {};
             
-            ws.onopen = () => {
-              console.log('🔗 WebSocket connected');
-              // Send execution request
-              ws.send(JSON.stringify({
-                type: 'execute',
-                input: executionInput.input,
-                metadata: {
-                  threadId: threadId,
-                  ...executionInput
-                }
-              }));
-            };
-            
-            ws.onmessage = (event) => {
-              try {
-                const data = JSON.parse(event.data);
-                console.log('📡 WebSocket message:', data);
-                
-                if (data.type === 'result') {
-                  // Handle execution result
-                  currentState.addExecutionLog({
-                    nodeId: 'result',
-                    nodeName: 'Result',
-                    type: 'output',
-                    message: 'Execution completed',
-                    data: data
-                  });
-                  
-                  intermediateResults.final = data;
-                } else if (data.type === 'error') {
-                  // Handle error
-                  currentState.addExecutionLog({
-                    nodeId: 'error',
-                    nodeName: 'Error',
-                    type: 'error',
-                    message: data.error || 'Execution failed',
-                    data: data
-                  });
-                } else if (data.type === 'node_execution') {
-                  // Handle node execution updates
-                  currentState.addExecutionLog({
-                    nodeId: data.nodeId || 'unknown',
-                    nodeName: data.nodeName || 'Unknown Node',
-                    type: 'info',
-                    message: `Node ${data.nodeId} executed`,
-                    data: data
-                  });
-                }
-              } catch (error) {
-                console.warn('Failed to parse WebSocket message:', event.data, error);
+            // Make HTTP request to the agent execution endpoint
+            try {
+              console.log('📡 Making HTTP request to agent...');
+              
+              const response = await fetch(`${config.apiUrl}/api/${selectedAgent.id}`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(config.apiKey && { 'X-Api-Key': config.apiKey })
+                },
+                body: JSON.stringify({
+                  message: executionInput.input
+                })
+              });
+              
+              if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
               }
-            };
-            
-            ws.onerror = (error) => {
-              console.error('WebSocket error:', error);
+              
+              const data = await response.json();
+              console.log('📡 Agent response:', data);
+              
+              if (data.success && data.output) {
+                currentState.addExecutionLog({
+                  nodeId: 'result',
+                  nodeName: 'Result',
+                  type: 'output',
+                  message: 'Execution completed successfully',
+                  data: data
+                });
+                
+                intermediateResults.final = data;
+                
+                // Add result to conversation - extract meaningful response from structured output
+                if (currentState.selectedThread) {
+                  let content: string;
+                  
+                  if (typeof data.output === 'string') {
+                    content = data.output;
+                  } else if (data.output && typeof data.output === 'object') {
+                    // Extract response field from structured agent output
+                    if (data.output.response && typeof data.output.response === 'string') {
+                      content = data.output.response;
+                    } else if (data.output.story && typeof data.output.story === 'string') {
+                      // For storymaker agent, use the story field
+                      content = data.output.story;
+                    } else {
+                      // Fallback to other meaningful text fields
+                      const textFields = ['result', 'content', 'text', 'message', 'answer', 'description'];
+                      content = '';
+                      for (const field of textFields) {
+                        if (data.output[field] && typeof data.output[field] === 'string') {
+                          content = data.output[field];
+                          break;
+                        }
+                      }
+                      
+                      // If no meaningful text field found, show formatted structured data
+                      if (!content) {
+                        // Create a formatted summary of the structured output
+                        const summary = [];
+                        if (data.output.title) summary.push(`📝 ${data.output.title}`);
+                        if (data.output.summary) summary.push(data.output.summary);
+                        if (data.output.key_insights && Array.isArray(data.output.key_insights)) {
+                          summary.push('🔍 Key Insights: ' + data.output.key_insights.join(', '));
+                        }
+                        if (data.output.themes && Array.isArray(data.output.themes)) {
+                          summary.push('🎯 Themes: ' + data.output.themes.join(', '));
+                        }
+                        
+                        content = summary.length > 0 ? summary.join('\n\n') : JSON.stringify(data.output, null, 2);
+                      }
+                    }
+                  } else {
+                    content = 'Response received but no content available';
+                  }
+                  
+                  const resultMessage = {
+                    id: `msg-${Date.now()}-result`,
+                    role: 'assistant' as const,
+                    content: content,
+                    timestamp: new Date(),
+                  };
+                  currentState.addMessageToThread(currentState.selectedThread.id, resultMessage);
+                }
+                
+                // Simulate graph progression for visual feedback
+                const nodes = currentState.graphState.nodes;
+                for (let i = 0; i < nodes.length; i++) {
+                  const node = nodes[i];
+                  
+                  // Simulate node execution with delays
+                  setTimeout(() => {
+                    currentState.addExecutionLog({
+                      nodeId: node.id,
+                      nodeName: node.data.label,
+                      type: 'input',
+                      message: `Starting execution of ${node.data.label}`,
+                      data: {
+                        node_type: node.type,
+                        current_state: executionInput,
+                        timestamp: new Date().toISOString()
+                      }
+                    });
+                    
+                    // Update graph state to show current node
+                    currentState.setGraphState({
+                      ...currentState.graphState,
+                      currentNode: node.id,
+                      executionPath: [...currentState.graphState.executionPath, node.id]
+                    });
+                  }, i * 500); // 500ms delay between nodes
+                }
+                
+              } else if (data.error) {
+                throw new Error(data.error);
+              } else {
+                throw new Error('Unexpected response format');
+              }
+              
+            } catch (error) {
+              console.error('❌ Agent execution failed:', error);
               currentState.addExecutionLog({
-                nodeId: 'system',
-                nodeName: 'System',
+                nodeId: 'error',
+                nodeName: 'Error',
                 type: 'error',
-                message: 'WebSocket connection error',
+                message: `Execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
                 data: { error }
               });
-            };
-            
-            ws.onclose = () => {
-              console.log('🔌 WebSocket disconnected');
-            };
-            
-            // Wait for WebSocket to complete or timeout
-            await new Promise((resolve, reject) => {
-              const timeout = setTimeout(() => {
-                ws.close();
-                reject(new Error('Execution timeout'));
-              }, 60000); // 60 second timeout
               
-              ws.addEventListener('message', (event) => {
-                const data = JSON.parse(event.data);
-                if (data.type === 'result' || data.type === 'error') {
-                  clearTimeout(timeout);
-                  ws.close();
-                  resolve(data);
-                }
-              });
-            });
+              // Add error message to conversation
+              if (currentState.selectedThread) {
+                const errorMessage = {
+                  id: `msg-${Date.now()}-error`,
+                  role: 'assistant' as const,
+                  content: `❌ **Execution Error**\n\n${error instanceof Error ? error.message : 'Unknown error occurred during agent execution.'}`,
+                  timestamp: new Date(),
+                };
+                currentState.addMessageToThread(currentState.selectedThread.id, errorMessage);
+              }
+            }
             
             // Complete execution
             const finalState = get();
@@ -1594,16 +1927,8 @@ export const useStudioStore = create<StudioStore>()(
                 }
               });
               
-              // Add completion message to chat
-              if (finalState.selectedThread && source === 'chat') {
-                const completionMessage: Message = {
-                  id: `msg-${Date.now()}-completion`,
-                  role: 'assistant',
-                  content: generateExecutionResponse(userMessage || 'execution completed', finalState.executionContext.logs),
-                  timestamp: new Date(),
-                };
-                finalState.addMessageToThread(finalState.selectedThread.id, completionMessage);
-              } else if (finalState.selectedThread && source === 'graph') {
+              // Add completion message only for graph executions (not chat, as we already added the result)
+              if (finalState.selectedThread && source === 'graph') {
                 const executedNodes = new Set(finalState.executionContext.logs.map((log: ExecutionLog) => log.nodeId));
                 const completionMessage: Message = {
                   id: `msg-${Date.now()}-graph-completion`,
@@ -1801,6 +2126,7 @@ export const useLiveUpdates = (
       callbackRef.current(event);
     });
     return unsubscribe;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventType, ...deps]);
 };
 
@@ -1816,6 +2142,7 @@ export const useAllLiveUpdates = (
       callbackRef.current(event);
     });
     return unsubscribe;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 };
 

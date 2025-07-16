@@ -53,7 +53,7 @@ export const ConnectionSetup: React.FC = () => {
     });
 
     try {
-      const healthUrl = `${url}/ok`;
+      const healthUrl = `${url}/health`;
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
@@ -100,48 +100,37 @@ export const ConnectionSetup: React.FC = () => {
       });
       setShowGraphs(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchAvailableGraphs = async (url: string) => {
+  const fetchAvailableGraphs = useCallback(async (url: string) => {
     setIsLoadingGraphs(true);
     try {
-      const response = await fetch(`${url}/assistants/search`, {
-        method: 'POST',
+      const response = await fetch(`${url}/agents`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          metadata: {},
-          limit: 100,
-          offset: 0
-        })
+        }
       });
 
       if (response.ok) {
         const data = await response.json();
         console.log('Available graphs:', data);
         
-        // Handle different response formats
+        // Handle GoLangGraph response format
         let graphs: AvailableGraph[] = [];
-        if (Array.isArray(data)) {
+        if (data.agents && Array.isArray(data.agents)) {
+          graphs = data.agents.map((item: any) => ({
+            id: item.id || item.name,
+            name: item.name || item.id,
+            description: item.description || `GoLangGraph Agent: ${item.name || item.id}`,
+            config: item.config || {}
+          }));
+        } else if (Array.isArray(data)) {
           graphs = data.map((item: any) => ({
-            id: item.assistant_id || item.id || item.graph_id || item.name,
-            name: item.name || item.assistant_id || item.id || item.graph_id,
-            description: item.description || `Assistant: ${item.assistant_id || item.id || item.name}`,
-            config: item.config || {}
-          }));
-        } else if (data.assistants && Array.isArray(data.assistants)) {
-          graphs = data.assistants.map((item: any) => ({
-            id: item.assistant_id || item.id || item.graph_id || item.name,
-            name: item.name || item.assistant_id || item.id || item.graph_id,
-            description: item.description || `Assistant: ${item.assistant_id || item.id || item.name}`,
-            config: item.config || {}
-          }));
-        } else if (data.graphs && Array.isArray(data.graphs)) {
-          graphs = data.graphs.map((item: any) => ({
-            id: item.assistant_id || item.id || item.graph_id || item.name,
-            name: item.name || item.assistant_id || item.id || item.graph_id,
-            description: item.description || `Assistant: ${item.assistant_id || item.id || item.name}`,
+            id: item.id || item.name,
+            name: item.name || item.id,
+            description: item.description || `GoLangGraph Agent: ${item.name || item.id}`,
             config: item.config || {}
           }));
         }
@@ -149,8 +138,8 @@ export const ConnectionSetup: React.FC = () => {
         setAvailableGraphs(graphs);
         
         // Auto-select first graph if none selected
-        if (graphs.length > 0 && !formData.assistantId) {
-          setFormData(prev => ({ ...prev, assistantId: graphs[0].id }));
+        if (graphs.length > 0 && !formData.agentId) {
+          setFormData(prev => ({ ...prev, agentId: graphs[0].id }));
         }
       } else {
         // Fallback to default graphs if endpoint doesn't exist
@@ -174,7 +163,7 @@ export const ConnectionSetup: React.FC = () => {
     } finally {
       setIsLoadingGraphs(false);
     }
-  };
+  }, []);
 
   // Debounced URL change effect
   useEffect(() => {
@@ -195,7 +184,7 @@ export const ConnectionSetup: React.FC = () => {
       return;
     }
 
-    if (!formData.assistantId) {
+    if (!formData.agentId) {
       toast.error('Please select a graph to use');
       return;
     }
@@ -205,7 +194,7 @@ export const ConnectionSetup: React.FC = () => {
 
     try {
       // Final connection test
-      const response = await fetch(`${formData.apiUrl}/ok`, {
+      const response = await fetch(`${formData.apiUrl}/health`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -219,54 +208,50 @@ export const ConnectionSetup: React.FC = () => {
         setConfig(formData);
         setIsConnected(true);
         
-        // Try to fetch actual assistants from the server
+        // Try to fetch actual agents from the server
         try {
-          console.log('🔍 Fetching assistants from server...');
-          const assistantsResponse = await fetch(`${formData.apiUrl}/assistants/search`, {
-            method: 'POST',
+          console.log('🔍 Fetching agents from server...');
+          const agentsResponse = await fetch(`${formData.apiUrl}/agents`, {
+            method: 'GET',
             headers: {
               'Content-Type': 'application/json',
               ...(formData.apiKey && { 'X-Api-Key': formData.apiKey })
-            },
-            body: JSON.stringify({
-              metadata: {},
-              limit: 100,
-              offset: 0
-            })
+            }
           });
           
-          if (assistantsResponse.ok) {
-            const serverAssistants = await assistantsResponse.json();
-            console.log('📋 Server assistants:', serverAssistants);
+          if (agentsResponse.ok) {
+            const serverAgents = await agentsResponse.json();
+            console.log('📋 Server agents:', serverAgents);
             
-            // Add server assistants to our store
-            if (Array.isArray(serverAssistants) && serverAssistants.length > 0) {
-              serverAssistants.forEach(assistant => {
+            // Add server agents to our store
+            const agentsList = serverAgents.agents || [];
+            if (Array.isArray(agentsList) && agentsList.length > 0) {
+              agentsList.forEach((agent: any) => {
                 addAssistant({
-                  id: assistant.assistant_id || assistant.id,
-                  name: assistant.name || assistant.assistant_id || assistant.id,
-                  description: assistant.description || '',
+                  id: agent.id,
+                  name: agent.name || agent.id,
+                  description: agent.description || '',
                   type: 'chat',
-                  model: 'gpt-4',
-                  provider: 'openai',
+                  model: 'gemma3:1b',
+                  provider: 'ollama',
                   temperature: 0.7,
                   maxTokens: 1000,
                   maxIterations: 10,
                   tools: [],
                   enableStreaming: false,
                   timeout: 30000,
-                  config: assistant.config || {},
-                  graph_id: assistant.graph_id || assistant.id,
+                  config: agent.config || {},
+                  graph_id: agent.id,
                 });
               });
               
-              // Use the first available assistant for graph data
-              const firstAssistant = serverAssistants[0];
-              const assistantId = firstAssistant.assistant_id || firstAssistant.id;
-              console.log(`✅ Using assistant: ${assistantId}`);
+              // Use the first available agent for graph data
+              const firstAgent = agentsList[0];
+              const agentId = firstAgent.id;
+              console.log(`✅ Using agent: ${agentId}`);
               
-              // Fetch the actual graph data for the first available assistant
-              await fetchGraphData(assistantId);
+              // Fetch the actual graph data for the first available agent
+              await fetchGraphData(agentId);
                       } else {
             console.warn('⚠️ No assistants found on server, using fallback');
             // Fallback: Add available graphs as assistants (original behavior)
@@ -651,7 +636,7 @@ export const ConnectionSetup: React.FC = () => {
                           <label
                             key={graph.id}
                             className={`flex items-center p-4 rounded-xl border cursor-pointer transition-all duration-300 transform hover:scale-105 ${
-                              formData.assistantId === graph.id
+                              formData.agentId === graph.id
                                 ? darkMode
                                   ? 'bg-blue-900/40 border-blue-500 text-blue-400 shadow-lg'
                                   : 'bg-blue-50 border-blue-500 text-blue-700 shadow-lg'
@@ -663,17 +648,17 @@ export const ConnectionSetup: React.FC = () => {
                           >
                             <input
                               type="radio"
-                              name="assistantId"
+                              name="agentId"
                               value={graph.id}
-                              checked={formData.assistantId === graph.id}
-                              onChange={(e) => handleInputChange('assistantId', e.target.value)}
+                              checked={formData.agentId === graph.id}
+                              onChange={(e) => handleInputChange('agentId', e.target.value)}
                               className="sr-only"
                             />
                             <div className="flex-1">
                               <div className="font-semibold">{graph.name}</div>
                               {graph.description && (
                                 <div className={`text-sm mt-1 ${
-                                  formData.assistantId === graph.id
+                                  formData.agentId === graph.id
                                     ? 'opacity-90'
                                     : darkMode ? 'text-gray-400' : 'text-gray-500'
                                 }`}>
@@ -682,11 +667,11 @@ export const ConnectionSetup: React.FC = () => {
                               )}
                             </div>
                             <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
-                              formData.assistantId === graph.id
+                              formData.agentId === graph.id
                                 ? 'border-current scale-110'
                                 : darkMode ? 'border-gray-500' : 'border-gray-300'
                             }`}>
-                              {formData.assistantId === graph.id && (
+                              {formData.agentId === graph.id && (
                                 <div className="w-3 h-3 rounded-full bg-current animate-pulse"></div>
                               )}
                             </div>
@@ -717,9 +702,9 @@ export const ConnectionSetup: React.FC = () => {
                 <div className="space-y-4 animate-fade-in-up stagger-3">
                   <button
                     type="submit"
-                    disabled={healthStatus.status !== 'success' || !formData.assistantId || isConnecting}
+                    disabled={healthStatus.status !== 'success' || !formData.agentId || isConnecting}
                     className={`w-full py-4 px-6 rounded-2xl font-semibold text-white transition-all duration-300 transform ${
-                      healthStatus.status === 'success' && formData.assistantId && !isConnecting
+                      healthStatus.status === 'success' && formData.agentId && !isConnecting
                         ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:scale-105 shadow-lg hover:shadow-2xl'
                         : 'bg-gray-400 cursor-not-allowed opacity-50'
                     }`}

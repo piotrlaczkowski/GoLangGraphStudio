@@ -1,14 +1,25 @@
 # GoLangGraph Studio Interface
 
+<div align="center">
+  <img src="public/imgs/main_screen_ok.png" alt="GoLangGraph Studio Main Interface" width="800"/>
+  <p><em>GoLangGraph Studio - A comprehensive development environment for GoLangGraph applications</em></p>
+</div>
+
 A fully functional React interface for debugging and testing GoLangGraph agents, adapted from the LangGraph Studio interface. This provides a comprehensive development environment for GoLangGraph applications without any limits for production use.
 
-![GoLangGraph Studio Interface](https://img.shields.io/badge/React-18.2.0-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.0.0-blue) ![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-3.3.0-blue) ![GoLangGraph](https://img.shields.io/badge/GoLangGraph-1.0.0-green)
+![React](https://img.shields.io/badge/React-18.2.0-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.0.0-blue) ![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-3.3.0-blue) ![GoLangGraph](https://img.shields.io/badge/GoLangGraph-1.0.0-green)
 
 ## 🚀 Features
 
 This interface provides all the key features needed for GoLangGraph development:
 
 ### 🔗 Graph View
+
+<div align="center">
+  <img src="public/imgs/graph_view.png" alt="Graph View Interface" width="600"/>
+  <p><em>Interactive graph visualization with real-time execution tracking</em></p>
+</div>
+
 - **Visual Graph Representation**: Interactive flow diagram showing your GoLangGraph execution
 - **Real-time Node Status**: See which nodes are running, completed, or errored
 - **Execution Path Tracking**: Visual representation of the current execution path
@@ -76,6 +87,11 @@ This interface provides all the key features needed for GoLangGraph development:
 ### Connecting to GoLangGraph Server
 
 When you first open the application, you'll see a connection setup screen:
+
+<div align="center">
+  <img src="public/imgs/main_screen.png" alt="Connection Setup Screen" width="500"/>
+  <p><em>Initial connection setup interface</em></p>
+</div>
 
 1. **Server URL**: Enter your GoLangGraph server URL (default: `http://localhost:8080`)
 2. **Agent ID**: (Optional) Specify a default agent ID
