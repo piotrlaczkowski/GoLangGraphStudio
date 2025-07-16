@@ -1,0 +1,38 @@
+name: Debug Repository Structure
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Show repository structure
+        run: |
+          echo "=== Current working directory ==="
+          pwd
+          echo ""
+          echo "=== Repository root contents ==="
+          ls -la
+          echo ""
+          echo "=== Environment variables ==="
+          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
+          echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
+          echo "GITHUB_REPOSITORY_OWNER: $GITHUB_REPOSITORY_OWNER"
+          echo ""
+          echo "=== Full directory tree (first 3 levels) ==="
+          find . -maxdepth 3 -type d | head -20
+          echo ""
+          echo "=== Looking for package.json files ==="
+          find . -name "package.json" -type f
+          echo ""
+          echo "=== Looking for mkdocs.yml files ==="
+          find . -name "mkdocs.yml" -type f
+          echo ""
+          echo "=== Looking for requirements.txt files ==="
+          find . -name "requirements.txt" -type f 

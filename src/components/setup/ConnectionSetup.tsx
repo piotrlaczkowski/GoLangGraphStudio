@@ -163,7 +163,7 @@ export const ConnectionSetup: React.FC = () => {
     } finally {
       setIsLoadingGraphs(false);
     }
-  }, []);
+  }, [formData.agentId]);
 
   // Debounced URL change effect
   useEffect(() => {

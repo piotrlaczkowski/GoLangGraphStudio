@@ -42,16 +42,16 @@ const LiveLogsPanel: React.FC<{
     return matchesSearch && matchesFilter;
   });
 
-  const getLogTypeColor = (type: string) => {
-    switch (type) {
-      case 'input': return darkMode ? 'text-blue-400' : 'text-blue-600';
-      case 'output': return darkMode ? 'text-green-400' : 'text-green-600';
-      case 'error': return darkMode ? 'text-red-400' : 'text-red-600';
-      case 'info': return darkMode ? 'text-gray-400' : 'text-gray-600';
-      case 'debug': return darkMode ? 'text-purple-400' : 'text-purple-600';
-      default: return darkMode ? 'text-gray-300' : 'text-gray-700';
-    }
-  };
+  // const getLogTypeColor = (type: string) => {
+  //   switch (type) {
+  //     case 'input': return darkMode ? 'text-blue-400' : 'text-blue-600';
+  //     case 'output': return darkMode ? 'text-green-400' : 'text-green-600';
+  //     case 'error': return darkMode ? 'text-red-400' : 'text-red-600';
+  //     case 'info': return darkMode ? 'text-gray-400' : 'text-gray-600';
+  //     case 'debug': return darkMode ? 'text-purple-400' : 'text-purple-600';
+  //     default: return darkMode ? 'text-gray-300' : 'text-gray-700';
+  //   }
+  // };
 
   const getLogTypeIcon = (type: string) => {
     switch (type) {
