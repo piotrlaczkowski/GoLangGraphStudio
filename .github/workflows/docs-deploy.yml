@@ -42,7 +42,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Install dependencies
-        working-directory: ./GoLangGraphStudio
+        working-directory: GoLangGraphStudio
         run: |
           pip install -r requirements.txt
 
@@ -52,7 +52,7 @@ jobs:
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
       - name: Build documentation
-        working-directory: ./GoLangGraphStudio
+        working-directory: GoLangGraphStudio
         run: |
           mkdocs build --verbose --clean
 
@@ -62,7 +62,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./GoLangGraphStudio/site
+          path: GoLangGraphStudio/site
 
   deploy:
     runs-on: ubuntu-latest
